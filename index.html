@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Urban Tree Canopy Estimator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-green-50 min-h-screen">
+<div class="max-w-5xl mx-auto p-4">
+  <header class="text-center py-6">
+    <h1 class="text-3xl font-bold text-green-900">🌳 Urban Tree Canopy Estimator</h1>
+    <p class="text-green-700 mt-1">Calculate carbon sequestration, cooling impact & stormwater benefits of urban trees</p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Add Tree Form -->
+    <div class="space-y-4">
+      <div class="bg-white rounded-2xl shadow p-5 border border-green-200">
+        <h2 class="font-semibold text-green-800 mb-4">Add Tree</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium text-gray-600">Species</label>
+            <select id="species" onchange="updateSpeciesData()" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+              <option value="oak">Oak (Quercus)</option>
+              <option value="maple">Maple (Acer)</option>
+              <option value="elm">Elm (Ulmus)</option>
+              <option value="ash">Ash (Fraxinus)</option>
+              <option value="pine">Pine (Pinus)</option>
+              <option value="cherry">Cherry (Prunus)</option>
+              <option value="ginkgo">Ginkgo</option>
+              <option value="linden">Linden (Tilia)</option>
+              <option value="plane">London Plane</option>
+              <option value="custom">Custom Species</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600">Custom Name (optional)</label>
+            <input id="treeName" type="text" placeholder="Tree ID or location note" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs font-medium text-gray-600">Trunk Diameter (cm)</label>
+              <input id="trunkDiam" type="number" value="30" min="1" oninput="updateEstimates()" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600">Approx Age (years)</label>
+              <input id="age" type="number" value="20" min="1" oninput="updateEstimates()" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600">Location / Hardiness Zone</label>
+            <select id="zone" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+              <option value="tropical">Tropical / Zone 10-13</option>
+              <option value="subtropical">Subtropical / Zone 8-9</option>
+              <option value="temperate" selected>Temperate / Zone 5-7</option>
+              <option value="continental">Continental / Zone 3-4</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600">Setting</label>
+            <select id="setting" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+              <option value="street">Street Tree</option>
+              <option value="park">Park</option>
+              <option value="residential">Residential Yard</option>
+              <option value="commercial">Commercial Property</option>
+            </select>
+          </div>
+
+          <!-- Live Estimates Preview -->
+          <div id="estimatePreview" class="bg-green-50 rounded-xl p-3 text-xs space-y-1"></div>
+
+          <button onclick="addTree()" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg transition">+ Add to Inventory</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tree Inventory & Summary -->
+    <div class="lg:col-span-2 space-y-4">
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-white rounded-xl p-4 shadow text-center border border-green-200">
+          <p class="text-2xl font-bold text-green-700" id="sum-trees">0</p>
+          <p class="text-xs text-gray-500">Trees</p>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow text-center border border-green-200">
+          <p class="text-xl font-bold text-emerald-700" id="sum-carbon">0</p>
+          <p class="text-xs text-gray-500">kg CO₂/yr total</p>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow text-center border border-blue-200">
+          <p class="text-xl font-bold text-blue-700" id="sum-water">0</p>
+          <p class="text-xs text-gray-500">L stormwater/yr</p>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow text-center border border-orange-200">
+          <p class="text-xl font-bold text-orange-700" id="sum-cooling">0</p>
+          <p class="text-xs text-gray-500">kWh cooling/yr</p>
+        </div>
+      </div>
+
+      <!-- Benefits Chart -->
+      <div class="bg-white rounded-2xl shadow p-5 border border-green-200">
+        <h2 class="font-semibold text-green-800 mb-3">Annual Benefits by Tree</h2>
+        <div id="benefitsChart"></div>
+      </div>
+
+      <!-- Tree Inventory -->
+      <div class="bg-white rounded-2xl shadow p-5 border border-green-200">
+        <h2 class="font-semibold text-green-800 mb-3">Tree Inventory</h2>
+        <div id="treeInventory" class="space-y-2 max-h-80 overflow-y-auto"></div>
+      </div>
+
+      <!-- Equivalencies -->
+      <div class="bg-white rounded-2xl shadow p-5 border border-green-200">
+        <h2 class="font-semibold text-green-800 mb-3">Real-World Equivalencies</h2>
+        <div id="equivalencies" class="text-gray-400 text-sm italic">Add trees to see equivalencies</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// i-Tree / USDA Forest Service based coefficients (approximate)
+const SPECIES_DATA = {
+  oak:    { name: 'Oak',          carbonRate: 22.7, growthRate: 1.2, canopyFactor: 2.8, waterFactor: 1.3, coolingFactor: 1.4 },
+  maple:  { name: 'Maple',        carbonRate: 18.1, growthRate: 1.1, canopyFactor: 2.5, waterFactor: 1.1, coolingFactor: 1.2 },
+  elm:    { name: 'Elm',          carbonRate: 16.8, growthRate: 1.3, canopyFactor: 2.6, waterFactor: 1.2, coolingFactor: 1.3 },
+  ash:    { name: 'Ash',          carbonRate: 14.2, growthRate: 1.0, canopyFactor: 2.2, waterFactor: 1.0, coolingFactor: 1.1 },
+  pine:   { name: 'Pine',         carbonRate: 11.5, growthRate: 1.5, canopyFactor: 1.8, waterFactor: 1.5, coolingFactor: 0.8 },
+  cherry: { name: 'Cherry',       carbonRate: 9.8,  growthRate: 0.8, canopyFactor: 1.9, waterFactor: 0.9, coolingFactor: 1.0 },
+  ginkgo: { name: 'Ginkgo',       carbonRate: 13.2, growthRate: 0.7, canopyFactor: 1.7, waterFactor: 0.8, coolingFactor: 0.9 },
+  linden: { name: 'Linden',       carbonRate: 17.4, growthRate: 1.0, canopyFactor: 2.4, waterFactor: 1.2, coolingFactor: 1.2 },
+  plane:  { name: 'London Plane', carbonRate: 20.1, growthRate: 1.4, canopyFactor: 3.0, waterFactor: 1.4, coolingFactor: 1.5 },
+  custom: { name: 'Custom',       carbonRate: 15.0, growthRate: 1.0, canopyFactor: 2.0, waterFactor: 1.0, coolingFactor: 1.0 },
+};
+
+const ZONE_MULTIPLIERS = { tropical: 1.4, subtropical: 1.2, temperate: 1.0, continental: 0.8 };
+const SETTING_MULTIPLIERS = { street: 0.85, park: 1.1, residential: 1.0, commercial: 0.9 };
+
+let trees = JSON.parse(localStorage.getItem('urban_trees') || '[]');
+
+function save() { localStorage.setItem('urban_trees', JSON.stringify(trees)); }
+
+function calcTreeBenefits(species, trunkDiam, age, zone, setting) {
+  const sp = SPECIES_DATA[species] || SPECIES_DATA.custom;
+  const zM = ZONE_MULTIPLIERS[zone] || 1.0;
+  const sM = SETTING_MULTIPLIERS[setting] || 1.0;
+
+  // Diameter at Breast Height (DBH) based equations (approximate)
+  const dbh = trunkDiam; // cm
+  const canopyArea = sp.canopyFactor * Math.PI * (dbh / 20)**2; // m²
+
+  // Carbon: based on i-Tree estimates for urban trees, scaled by DBH and age
+  const carbonKg = sp.carbonRate * zM * (dbh / 30) ** 1.5 * sM;
+
+  // Stormwater interception: 379L per 1000cm² of canopy per year (EPA avg)
+  const stormwater = canopyArea * 37.9 * zM * sM; // Liters/year
+
+  // Cooling: energy saved from shade (kWh/year) — avg residential 1 large tree = 30-100 kWh
+  const cooling = sp.coolingFactor * 30 * (dbh / 30) ** 1.2 * sM;
+
+  // Property value increase (% per large tree near building)
+  const propertyValue = Math.min(15, 2.5 * (dbh / 30));
+
+  // Estimated height
+  const height = Math.max(3, age * sp.growthRate * 0.4);
+
+  return { carbonKg, stormwater, cooling, canopyArea, height, propertyValue };
+}
+
+function updateEstimates() {
+  const species = document.getElementById('species').value;
+  const trunkDiam = parseFloat(document.getElementById('trunkDiam').value) || 30;
+  const age = parseFloat(document.getElementById('age').value) || 20;
+  const zone = document.getElementById('zone').value;
+  const setting = document.getElementById('setting').value;
+  const b = calcTreeBenefits(species, trunkDiam, age, zone, setting);
+
+  document.getElementById('estimatePreview').innerHTML = `
+    <div class="font-semibold text-green-700 mb-1">Estimated Annual Benefits:</div>
+    <div class="grid grid-cols-2 gap-1">
+      <div>🌿 Carbon: <strong>${b.carbonKg.toFixed(1)} kg CO₂</strong></div>
+      <div>💧 Stormwater: <strong>${Math.round(b.stormwater)} L</strong></div>
+      <div>❄️ Cooling: <strong>${b.cooling.toFixed(0)} kWh</strong></div>
+      <div>🌲 Canopy: <strong>${b.canopyArea.toFixed(1)} m²</strong></div>
+      <div>📏 Est. Height: <strong>${b.height.toFixed(1)} m</strong></div>
+      <div>🏠 Value: <strong>+${b.propertyValue.toFixed(1)}%</strong></div>
+    </div>`;
+}
+
+function updateSpeciesData() { updateEstimates(); }
+
+function addTree() {
+  const species = document.getElementById('species').value;
+  const trunkDiam = parseFloat(document.getElementById('trunkDiam').value) || 30;
+  const age = parseFloat(document.getElementById('age').value) || 20;
+  const zone = document.getElementById('zone').value;
+  const setting = document.getElementById('setting').value;
+  const name = document.getElementById('treeName').value.trim();
+  const benefits = calcTreeBenefits(species, trunkDiam, age, zone, setting);
+  const sp = SPECIES_DATA[species];
+
+  trees.push({
+    id: Date.now().toString(),
+    species,
+    speciesName: sp?.name || 'Custom',
+    name: name || `${sp?.name} #${trees.filter(t=>t.species===species).length+1}`,
+    trunkDiam, age, zone, setting, benefits,
+    addedDate: new Date().toISOString().split('T')[0]
+  });
+
+  save();
+  renderAll();
+  document.getElementById('treeName').value = '';
+}
+
+function deleteTree(id) {
+  trees = trees.filter(t => t.id !== id);
+  save();
+  renderAll();
+}
+
+function renderAll() {
+  renderSummary();
+  renderBenefitsChart();
+  renderInventory();
+  renderEquivalencies();
+}
+
+function renderSummary() {
+  const totals = trees.reduce((acc, t) => ({
+    carbon: acc.carbon + t.benefits.carbonKg,
+    water: acc.water + t.benefits.stormwater,
+    cooling: acc.cooling + t.benefits.cooling,
+  }), { carbon: 0, water: 0, cooling: 0 });
+
+  document.getElementById('sum-trees').textContent = trees.length;
+  document.getElementById('sum-carbon').textContent = Math.round(totals.carbon);
+  document.getElementById('sum-water').textContent = Math.round(totals.water).toLocaleString();
+  document.getElementById('sum-cooling').textContent = Math.round(totals.cooling);
+}
+
+function renderBenefitsChart() {
+  const container = document.getElementById('benefitsChart');
+  if (trees.length === 0) { container.innerHTML = '<p class="text-gray-400 text-sm italic">No trees added yet</p>'; return; }
+
+  const W = 460, H = 140;
+  const maxCarbon = Math.max(...trees.map(t => t.benefits.carbonKg));
+  const barW = Math.floor((W - 40) / trees.length) - 2;
+
+  const bars = trees.map((t, i) => {
+    const x = 30 + i * ((W - 40) / trees.length);
+    const carbonH = (t.benefits.carbonKg / maxCarbon) * (H - 30);
+    const y = H - 20 - carbonH;
+    return `<rect x="${x}" y="${y}" width="${barW}" height="${carbonH}" fill="#10b981" rx="2"/>
+      <text x="${x + barW/2}" y="${H-5}" text-anchor="middle" font-size="7" fill="#6b7280">${t.speciesName.substring(0,6)}</text>
+      <text x="${x + barW/2}" y="${y-2}" text-anchor="middle" font-size="7" fill="#065f46">${t.benefits.carbonKg.toFixed(0)}</text>`;
+  }).join('');
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="w-full" height="${H}">
+    <line x1="28" y1="0" x2="28" y2="${H-18}" stroke="#e5e7eb" stroke-width="1"/>
+    <line x1="28" y1="${H-18}" x2="${W}" y2="${H-18}" stroke="#e5e7eb" stroke-width="1"/>
+    ${bars}
+    <text x="12" y="${H/2}" transform="rotate(-90,12,${H/2})" text-anchor="middle" font-size="8" fill="#6b7280">CO₂ kg/yr</text>
+  </svg>`;
+}
+
+function renderInventory() {
+  const container = document.getElementById('treeInventory');
+  if (trees.length === 0) {
+    container.innerHTML = '<p class="text-gray-400 text-sm italic text-center py-4">No trees in inventory. Add trees to track their benefits!</p>';
+    return;
+  }
+
+  container.innerHTML = trees.map(t => `
+    <div class="bg-green-50 rounded-xl p-3 border border-green-100">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex-1">
+          <div class="flex flex-wrap items-center gap-2 mb-1">
+            <span class="font-bold text-green-900">🌳 ${t.name}</span>
+            <span class="text-xs text-gray-500">${t.trunkDiam}cm DBH · Age ${t.age}yr</span>
+            <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">${t.setting}</span>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div class="bg-white rounded-lg p-1.5 text-center">
+              <p class="text-gray-400">CO₂</p>
+              <p class="font-bold text-emerald-700">${t.benefits.carbonKg.toFixed(1)} kg/yr</p>
+            </div>
+            <div class="bg-white rounded-lg p-1.5 text-center">
+              <p class="text-gray-400">Stormwater</p>
+              <p class="font-bold text-blue-700">${Math.round(t.benefits.stormwater)} L/yr</p>
+            </div>
+            <div class="bg-white rounded-lg p-1.5 text-center">
+              <p class="text-gray-400">Cooling</p>
+              <p class="font-bold text-orange-600">${t.benefits.cooling.toFixed(0)} kWh/yr</p>
+            </div>
+            <div class="bg-white rounded-lg p-1.5 text-center">
+              <p class="text-gray-400">Canopy</p>
+              <p class="font-bold text-green-600">${t.benefits.canopyArea.toFixed(1)} m²</p>
+            </div>
+          </div>
+        </div>
+        <button onclick="deleteTree('${t.id}')" class="text-gray-300 hover:text-red-400 text-sm shrink-0">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderEquivalencies() {
+  const container = document.getElementById('equivalencies');
+  if (trees.length === 0) return;
+
+  const totals = trees.reduce((acc, t) => ({
+    carbon: acc.carbon + t.benefits.carbonKg,
+    water: acc.water + t.benefits.stormwater,
+    cooling: acc.cooling + t.benefits.cooling,
+    canopy: acc.canopy + t.benefits.canopyArea,
+  }), { carbon: 0, water: 0, cooling: 0, canopy: 0 });
+
+  const carDriveKm = Math.round(totals.carbon / 0.21); // 210g CO2/km avg car
+  const flightsHrs = (totals.carbon / 255).toFixed(1); // ~255kg CO2/flight hour
+  const showers = Math.round(totals.water / 60); // 60L per shower
+  const lightBulbs = Math.round(totals.cooling / 8760 * 10); // equivalent LED bulbs
+
+  container.innerHTML = `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-gray-50 rounded-xl p-3 text-center">
+        <p class="text-2xl">🚗</p>
+        <p class="font-bold text-gray-700">${carDriveKm.toLocaleString()} km</p>
+        <p class="text-xs text-gray-500">of car driving offset</p>
+      </div>
+      <div class="bg-gray-50 rounded-xl p-3 text-center">
+        <p class="text-2xl">✈️</p>
+        <p class="font-bold text-gray-700">${flightsHrs} hrs</p>
+        <p class="text-xs text-gray-500">of flight offset</p>
+      </div>
+      <div class="bg-gray-50 rounded-xl p-3 text-center">
+        <p class="text-2xl">🚿</p>
+        <p class="font-bold text-gray-700">${showers.toLocaleString()}</p>
+        <p class="text-xs text-gray-500">showers worth of water</p>
+      </div>
+      <div class="bg-gray-50 rounded-xl p-3 text-center">
+        <p class="text-2xl">💡</p>
+        <p class="font-bold text-gray-700">${lightBulbs}</p>
+        <p class="text-xs text-gray-500">LED bulbs replaced</p>
+      </div>
+    </div>
+    <p class="text-xs text-gray-400 mt-3">Based on annual totals across ${trees.length} tree${trees.length !== 1 ? 's' : ''}.
+    Carbon offset: ${totals.carbon.toFixed(1)} kg CO₂/yr · Canopy: ${totals.canopy.toFixed(1)} m²</p>`;
+}
+
+// Init
+updateEstimates();
+renderAll();
+</script>
+</body>
+</html>
